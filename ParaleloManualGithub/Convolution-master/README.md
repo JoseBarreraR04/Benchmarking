@@ -39,7 +39,7 @@ Las imágenes, son interpretadas como matrices, donde cada posición de la matri
 
 Dada la siguiente imagen:
 
-<img src="imagesForMarkDown/heart.jpg" alt="drawing" width="200"/>
+<img src="../../imagesForMarkDown/heart.jpg" alt="drawing" width="200"/>
 
 ---
 
@@ -47,19 +47,19 @@ CImg nos dará los siguientes datos:
 
 Rojos
 
-<img src="imagesForMarkDown/heart1.png" alt="drawing" width="800"/>
+<img src="../../imagesForMarkDown/heart1.png" alt="drawing" width="800"/>
 
 ---
 
 Verdes
 
-<img src="imagesForMarkDown/heart2.png" alt="drawing" width="800"/>
+<img src="../../imagesForMarkDown/heart2.png" alt="drawing" width="800"/>
 
 ---
 
 Azules
 
-<img src="imagesForMarkDown/heart3.png" alt="drawing" width="800"/>
+<img src="../../imagesForMarkDown/heart3.png" alt="drawing" width="800"/>
 
 > Notese que los negros son valores bajos (cercanos a 0) y los blancos son los 3 canales de colores en sus valores mas altos
 
@@ -122,7 +122,7 @@ short kernel_calc(const short* ptr, short x_offset, short y_offset, const array<
 
 El kernel es una pequeña matriz (usualmente 3x3 o 5x5) que recorre toda la imagen para aplicar los cálculos sobre un pixel pero tomando en cuenta los pixeles adyacentes.
 
-![kernelGif](imagesForMarkDown/convolution.gif)
+![kernelGif](../../imagesForMarkDown/convolution.gif)
 
 ---
 

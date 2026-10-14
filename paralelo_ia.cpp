@@ -25,6 +25,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -70,19 +71,20 @@ static fs::path dirEjecutable(const char* argv0) {
     return p.parent_path();
 }
 
-// Busca la carpeta "Images" de forma robusta (distintos directorios de trabajo).
-static fs::path encontrarCarpetaImagenes(const fs::path& exeDir) {
+// Busca una carpeta de imagenes por NOMBRE de forma robusta (distintos
+// directorios de trabajo).
+static fs::path encontrarCarpetaImagenes(const fs::path& exeDir, const std::string& nombre) {
     std::vector<fs::path> candidatos;
     std::error_code ec;
     fs::path cwd = fs::current_path(ec);
-    candidatos.push_back(cwd / "Images");
-    candidatos.push_back(cwd / ".." / "Images");
-    candidatos.push_back(cwd / ".." / ".." / "Images");
-    candidatos.push_back(cwd / ".." / ".." / ".." / "Images");
+    candidatos.push_back(cwd / nombre);
+    candidatos.push_back(cwd / ".." / nombre);
+    candidatos.push_back(cwd / ".." / ".." / nombre);
+    candidatos.push_back(cwd / ".." / ".." / ".." / nombre);
     if (!exeDir.empty()) {
-        candidatos.push_back(exeDir / "Images");
-        candidatos.push_back(exeDir / ".." / "Images");
-        candidatos.push_back(exeDir / ".." / ".." / "Images");
+        candidatos.push_back(exeDir / nombre);
+        candidatos.push_back(exeDir / ".." / nombre);
+        candidatos.push_back(exeDir / ".." / ".." / nombre);
     }
     for (const auto& c : candidatos) {
         std::error_code e;
@@ -94,6 +96,35 @@ static fs::path encontrarCarpetaImagenes(const fs::path& exeDir) {
         }
     }
     return {};
+}
+
+// Resuelve la carpeta de imagenes a usar:
+//  - Si BENCH_DATASET apunta a un directorio, se usa tal cual (ruta absoluta
+//    o relativa), lo que permite correr distintos conjuntos de imagenes.
+//  - Si BENCH_DATASET es solo un nombre, se busca por ese nombre.
+//  - Si no esta definida, se usa la carpeta "Images" (comportamiento original).
+static fs::path resolverCarpeta(const fs::path& exeDir) {
+    const char* env = std::getenv("BENCH_DATASET");
+    if (env && *env) {
+        std::error_code e;
+        fs::path p(env);
+        if (fs::is_directory(p, e)) return fs::canonical(p, e);
+        return encontrarCarpetaImagenes(exeDir, env);
+    }
+    return encontrarCarpetaImagenes(exeDir, "Images");
+}
+
+// Lee un entero desde una variable de entorno (util para acortar corridas de
+// prueba sin recompilar). Devuelve 'defecto' si no esta definida o es invalida.
+static int leerEnteroEnv(const char* nombre, int defecto) {
+    const char* env = std::getenv(nombre);
+    if (!env || !*env) return defecto;
+    try {
+        const int v = std::stoi(env);
+        return (v > 0) ? v : defecto;
+    } catch (...) {
+        return defecto;
+    }
 }
 
 static std::vector<fs::path> listarImagenes(const fs::path& carpeta) {
@@ -200,16 +231,19 @@ static Estadisticas calcularEstadisticas(const std::vector<double>& v) {
 
 // ---------------------------------------------------------------------------
 int main(int argc, char** argv) {
-    const fs::path carpeta = encontrarCarpetaImagenes(dirEjecutable(argc > 0 ? argv[0] : nullptr));
+    const fs::path carpeta = resolverCarpeta(dirEjecutable(argc > 0 ? argv[0] : nullptr));
     if (carpeta.empty()) {
-        std::cerr << "[ERROR] No se encontro la carpeta 'Images' con imagenes.\n";
+        std::cerr << "[ERROR] No se encontro una carpeta de imagenes valida. "
+                     "Crea 'Images' o define la variable BENCH_DATASET.\n";
         return 1;
     }
     const std::vector<fs::path> imagenes = listarImagenes(carpeta);
     if (imagenes.empty()) {
-        std::cerr << "[ERROR] La carpeta 'Images' esta vacia.\n";
+        std::cerr << "[ERROR] La carpeta '" << carpeta.string() << "' esta vacia.\n";
         return 1;
     }
+
+    const int repeticiones = leerEnteroEnv("BENCH_REPS", REPETICIONES);
 
 #ifdef _OPENMP
     const int hilosMax = omp_get_max_threads();
@@ -220,7 +254,8 @@ int main(int argc, char** argv) {
 
     std::cerr << "[paralelo_ia] Carpeta de imagenes: " << carpeta.string() << "\n";
     std::cerr << "[paralelo_ia] Imagenes encontradas: " << imagenes.size()
-              << " | Hilos maximos: " << hilosMax << "\n";
+              << " | Hilos maximos: " << hilosMax
+              << " | Repeticiones: " << repeticiones << "\n";
 
     // Cabecera CSV (stdout) para pegar directamente en las tablas del paper.
     std::cout << "programa,imagen,ancho,alto,kernel,hilos,repeticiones,"
@@ -253,8 +288,8 @@ int main(int argc, char** argv) {
                     convolucionar(entrada, salida, w, h, 3, kernel, k);
 
                 std::vector<double> tiempos;
-                tiempos.reserve(REPETICIONES);
-                for (int rep = 0; rep < REPETICIONES; ++rep) {
+                tiempos.reserve(repeticiones);
+                for (int rep = 0; rep < repeticiones; ++rep) {
                     const auto t0 = std::chrono::high_resolution_clock::now();
                     convolucionar(entrada, salida, w, h, 3, kernel, k);
                     const auto t1 = std::chrono::high_resolution_clock::now();
@@ -265,7 +300,7 @@ int main(int argc, char** argv) {
                 const uint64_t chk = fnv1a64(salida);
 
                 std::cout << "paralelo_ia," << nombre << ',' << w << ',' << h << ',' << k
-                          << ',' << hilos << ',' << REPETICIONES << ','
+                          << ',' << hilos << ',' << repeticiones << ','
                           << st.media << ',' << st.desviacion << ','
                           << st.minimo << ',' << st.maximo << ','
                           << chk << '\n';

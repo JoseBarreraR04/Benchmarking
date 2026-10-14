@@ -1,0 +1,10 @@
+services:
+  benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: benchmark-paralelo:latest
+    container_name: benchmark-paralelo
+    # Los CSV generados apareceran en ./resultados del host.
+    volumes:
+      - ./resultados:/resultados

@@ -1,0 +1,7 @@
+# Ignorar artefactos de build y editor para no enviarlos al contexto de Docker.
+**/cmake-build-*
+.idea/
+.git/
+*.exe
+resultados/
+TareaParalela.pdf

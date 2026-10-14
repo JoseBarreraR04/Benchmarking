@@ -50,8 +50,8 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=builder /out/ ./
+# Un solo conjunto de imagenes (512, 1024, 2048 y 4096 px).
 COPY Images ./Images
-COPY imgs ./imgs
 COPY docker/run_all.sh /app/run_all.sh
 COPY docker/evaluar.py /app/evaluar.py
 RUN sed -i 's/\r$//' /app/run_all.sh /app/evaluar.py && chmod +x /app/run_all.sh

@@ -47,11 +47,10 @@ de salida y el mismo **checksum**, de modo que la comparación es directa.
 
 | Conjunto | Imágenes | Tamaño | Propósito |
 |---|---|---|---|
-| **setA** | `Avion512.png`, `Male1024.png`, `nube2048.png`, `minecraft4096.png` | 512², 1024², 2048², 4096² | Evaluar la **escalabilidad por tamaño de imagen** (requisito del enunciado) |
-| **setB** | 30 imágenes aleatorias de `imgs/` | 1080×720 | Evaluar el comportamiento ante **variedad de contenido** |
+| **`Images/`** | `Avion512.png`, `Male1024.png`, `nube2048.png`, `minecraft4096.png` | 512², 1024², 2048², 4096² | Evaluar la **escalabilidad por tamaño de imagen** (requisito del enunciado) |
 
-- La selección de `setB` se realiza de forma aleatoria en cada corrida y se
-  documenta en `resultados/manifiesto_setB.txt` para trazabilidad.
+- Se corre **una sola vez** sobre este conjunto; toda la información queda en un
+  único archivo (`resultados/resultados.csv`).
 - Todas las imágenes se normalizan a **RGB (3 canales)** antes de convolucionar.
 
 ## 5. Parámetros del experimento
@@ -108,17 +107,17 @@ configuración **no** es válida y se marca explícitamente en las tablas.
    ```cmd
    docker build -t benchmark-paralelo .
    ```
-3. **Ejecutar el benchmark completo** (setA + setB) y generar la evaluación:
+3. **Ejecutar el benchmark completo** (una sola corrida) y generar la evaluación:
    ```cmd
    docker run --rm -v "%cd%\resultados:/resultados" benchmark-paralelo
    ```
    El contenedor, para cada programa:
-   - recorre automáticamente las imágenes de cada conjunto;
+   - recorre automáticamente las imágenes del conjunto `Images/`;
    - aplica los kernels 3/5/7/11 y, en las variantes paralelas, prueba 1/2/4/8/16
      hilos;
    - realiza 1 ejecución de calentamiento + 30 ejecuciones cronometradas por
      configuración, y calcula las estadísticas y el checksum;
-   - escribe los CSV en `resultados/setA/` y `resultados/setB/`.
+   - acumula todas las filas en **un único** `resultados/resultados.csv`.
 4. **Generar tablas y figuras.** Lo hace automáticamente el paso 3 mediante
    `docker/evaluar.py`, que agrega todo (`combinado.csv`), valida los checksums y
    produce `tablas.md` y `graficas/*.png`.
@@ -126,22 +125,22 @@ configuración **no** es válida y se marca explícitamente en las tablas.
    `docker run --rm -v "%cd%\resultados:/resultados" --entrypoint python3 benchmark-paralelo /app/evaluar.py /resultados`.)
 
 Para pruebas rápidas (sin esperar los 30 ciclos completos), añadir
-`-e BENCH_REPS=3 -e BENCH_DATASETS=setA` al comando del paso 3.
+`-e BENCH_REPS=3` al comando del paso 3.
 
 ## 9. Resultados
 
-- **Datos crudos:** `resultados/setA/*.csv`, `resultados/setB/*.csv`.
+- **Datos crudos:** `resultados/resultados.csv` (todas las variantes en un solo archivo).
 - **Datos procesados:** `resultados/combinado.csv` (incluye `speedup` y
   `eficiencia`).
 - **Tablas:** `resultados/tablas.md`.
 - **Figuras:** `resultados/graficas/` (tiempo, speedup y eficiencia vs hilos por
-  programa y conjunto; comparación directa entre programas).
+  programa; comparación directa entre programas).
 
 > Pegar aquí las tablas y figuras relevantes de `tablas.md` / `graficas/`.
 
 ## 10. Guía de análisis
 
-- **Escalabilidad por tamaño (setA):** el speedup debe crecer con el tamaño de la
+- **Escalabilidad por tamaño:** el speedup debe crecer con el tamaño de la
   imagen porque el cómputo por píxel domina sobre los costos fijos.
 - **Escalabilidad por kernel:** a mayor `K`, más trabajo por píxel y mejor
   aprovechamiento de los hilos.

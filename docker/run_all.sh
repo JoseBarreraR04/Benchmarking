@@ -1,50 +1,35 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  run_all.sh - Ejecuta TODAS las variantes del benchmark y genera la
-#  evaluacion (CSV combinado, tablas Markdown y graficas).
-#
-#  Conjuntos de imagenes:
-#    setA : /app/Images -> 512, 1024, 2048 y 4096 px (enunciado de la tarea)
-#    setB : 30 imagenes aleatorias de /app/imgs (1080x720, variedad de contenido)
+#  run_all.sh
+#  Ejecuta TODAS las variantes del benchmark sobre UN SOLO conjunto de imagenes
+#  (por defecto /app/Images: 512, 1024, 2048 y 4096 px) y deja toda la
+#  informacion en UN SOLO archivo CSV, ademas de las tablas y graficas.
 #
 #  Variables de entorno opcionales:
 #    BENCH_REPS      Repeticiones cronometradas por configuracion (por defecto 30)
-#    BENCH_DATASETS  Conjuntos a correr, p. ej. "setA" o "setA setB" (por defecto ambos)
+#    BENCH_DATASET   Carpeta de imagenes a usar (por defecto /app/Images)
 # ============================================================================
 set -uo pipefail
 
 OUT="/resultados"
 mkdir -p "$OUT"
-rm -rf "$OUT/setA" "$OUT/setB" "$OUT/graficas"
-mkdir -p "$OUT/setA" "$OUT/setB" "$OUT/graficas"
+# Se parte de cero en cada corrida (nada de resultados viejos mezclados).
+rm -f "$OUT"/*.csv "$OUT"/resumen.txt
+rm -rf "$OUT/graficas"
+mkdir -p "$OUT/graficas"
+# Limpieza del esquema antiguo de dos conjuntos (setA/setB), si existiera.
+rm -rf "$OUT/setA" "$OUT/setB" "$OUT/manifiesto_setB.txt"
 
 export MPLBACKEND=Agg
 export BENCH_REPS="${BENCH_REPS:-30}"
-DATASETS="${BENCH_DATASETS:-setA setB}"
+DATASET="${BENCH_DATASET:-/app/Images}"
 
 echo "=========================================================="
 echo " Benchmark de convolucion  -  $(nproc) nucleos visibles"
+echo " Conjunto de imagenes: ${DATASET}"
 echo " Repeticiones por configuracion: ${BENCH_REPS}"
-echo " Conjuntos: ${DATASETS}"
 echo " Resultados en: ${OUT}"
 echo "=========================================================="
-
-# --- Conjunto B: 30 imagenes aleatorias de imgs/ ---------------------------
-DATASET_B="/app/dataset_b"
-rm -rf "$DATASET_B"
-mkdir -p "$DATASET_B"
-if compgen -G "/app/imgs/*.jpg" > /dev/null; then
-    # Seleccion aleatoria (reproducible solo por el manifiesto que se guarda).
-    mapfile -t SEL < <(ls /app/imgs/*.jpg | shuf -n 30)
-    for f in "${SEL[@]}"; do
-        ln -sf "$f" "$DATASET_B/$(basename "$f")"
-    done
-    printf '%s\n' "${SEL[@]}" | xargs -n1 basename | sort > "$OUT/manifiesto_setB.txt"
-    echo "[dataset] setB: ${#SEL[@]} imagenes aleatorias (ver manifiesto_setB.txt)"
-else
-    echo "[dataset] AVISO: no se encontro /app/imgs; setB se omitira"
-    DATASETS="${DATASETS/setB/}"
-fi
 
 # --- Programas disponibles --------------------------------------------------
 PROGS=()
@@ -60,35 +45,20 @@ fi
 echo "[benchmark] Programas: ${PROGS[*]}"
 echo ""
 
-correr_conjunto() {
-    local nombre="$1"
-    local carpeta="$2"
-    echo "==================== Conjunto ${nombre} ===================="
-    for p in "${PROGS[@]}"; do
-        echo ">>> ${p} (${nombre}) ..."
-        BENCH_DATASET="$carpeta" "/app/${p}" > "${OUT}/${nombre}/${p}.csv"
-        echo "    -> ${OUT}/${nombre}/${p}.csv"
-    done
-    echo ""
-}
+# --- UN solo CSV con todas las variantes (encabezado una sola vez) ----------
+CSV="$OUT/resultados.csv"
+echo "programa,imagen,ancho,alto,kernel,hilos,repeticiones,media_ms,stddev_ms,min_ms,max_ms,checksum" > "$CSV"
 
-for ds in ${DATASETS}; do
-    if [ "$ds" = "setA" ]; then
-        if [ -d "/app/Images" ]; then
-            correr_conjunto setA /app/Images
-        else
-            echo "[AVISO] No existe /app/Images; setA omitido"
-        fi
-    elif [ "$ds" = "setB" ]; then
-        if [ -n "$(ls -A "$DATASET_B" 2>/dev/null)" ]; then
-            correr_conjunto setB "$DATASET_B"
-        else
-            echo "[AVISO] setB vacio; omitido"
-        fi
-    fi
+for p in "${PROGS[@]}"; do
+    echo ">>> ${p} ..."
+    # Cada programa imprime su CSV (con encabezado) en stdout; se descarta ese
+    # encabezado con 'tail -n +2' y las filas se acumulan en el unico CSV.
+    BENCH_DATASET="$DATASET" "/app/${p}" | tail -n +2 >> "$CSV"
+    echo "    -> total filas acumuladas: $(($(wc -l < "$CSV") - 1))"
 done
+echo ""
 
-# --- Evaluacion -------------------------------------------------------------
+# --- Evaluacion (tablas + graficas) -----------------------------------------
 echo "=========================================================="
 echo " Generando evaluacion (combinado.csv, tablas.md, graficas/)"
 echo "=========================================================="

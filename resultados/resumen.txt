@@ -1,4 +1,4 @@
-Conjuntos: setA, setB
-Programas: Secuencial, Paralelo IA
-Validacion estricta: 136/136 coinciden, 0 fallos
+Conjunto: 4 imagenes
+Programas: Secuencial, Paralelo IA, Paralelo IA + Opt, Paralelo Manual
+Validacion estricta: 48/48 coinciden, 0 fallos
 Generado: combinado.csv, tablas.md, graficas/*.png

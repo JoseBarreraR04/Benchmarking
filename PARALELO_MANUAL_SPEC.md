@@ -7,6 +7,12 @@ manual (el de <https://github.com/ivandres73/Convolution.git>) para que sea
 convolución sigue siendo tuyo** (humano); aquí solo se fija el formato y las
 condiciones experimentales.
 
+> `paralelo_manual.cpp` **ya está incluido en el proyecto** y adaptado del
+> repositorio (conservando su esencia: `kernel_calc`, `convolution` con
+> `#pragma omp parallel for ... schedule(static, 2)` y `applyFilter` por canal).
+> Este documento describe el contrato que cumple y sirve de guía por si quieres
+> reemplazarlo por tu **propia** versión.
+
 ## Ubicación y compilación
 
 - Coloca el archivo en la **raíz del proyecto**: `Benchmarking/paralelo_manual.cpp`.
@@ -86,34 +92,36 @@ adaptada a tamaño dinámico, kernel dinámico y borde clamp.
    docker run --rm -v "%cd%\resultados:/resultados" benchmark-paralelo
    ```
    > Para probar rápido antes de la corrida completa:
-   > `docker run --rm -e BENCH_REPS=3 -e BENCH_DATASETS=setA -v "%cd%\resultados:/resultados" benchmark-paralelo`
+   > `docker run --rm -e BENCH_REPS=3 -v "%cd%\resultados:/resultados" benchmark-paralelo`
 
 4. **Verifica la equivalencia.** Abre `resultados/resumen.txt`: debe decir
    `X/X coinciden, 0 fallos`. Si tu variante manual falla el checksum, revisa en
    `resultados/tablas.md` (sección 1) qué imagen/kernel no coincide.
 
 5. **Comprueba tu CSV** directamente si quieres ver el detalle:
-   `resultados/setA/paralelo_manual.csv`.
+   filtra la columna `programa` = `paralelo_manual` en
+   `resultados/resultados.csv`.
 
 ### Correr solo el manual (a mano)
 
-Si ya construiste la imagen y solo quieres ejecutar tu variante:
+Si ya construiste la imagen y solo quieres ejecutar tu variante (en una carpeta
+aparte, para no chocar con el archivo único de la corrida automática):
 
 ```cmd
-docker run --rm -v "%cd%\resultados:/resultados" --entrypoint sh benchmark-paralelo -c "mkdir -p /resultados/setA && BENCH_DATASET=/app/Images /app/paralelo_manual > /resultados/setA/paralelo_manual.csv"
+docker run --rm -v "%cd%\resultados_manual:/resultados" --entrypoint sh benchmark-paralelo -c "/app/paralelo_manual > /resultados/paralelo_manual.csv"
 ```
 
 Y luego regenerar la evaluación con:
 
 ```cmd
-docker run --rm -v "%cd%\resultados:/resultados" --entrypoint python3 benchmark-paralelo /app/evaluar.py /resultados
+docker run --rm -v "%cd%\resultados_manual:/resultados" --entrypoint python3 benchmark-paralelo /app/evaluar.py /resultados
 ```
 
 ## Verificación rápida
 
-Tras compilar dentro de Docker, la columna `checksum` de
-`resultados/setA/paralelo_manual.csv` debe ser **igual** a la de
-`resultados/setA/secuencial.csv` para cada imagen y kernel. El script
+Tras compilar dentro de Docker, la columna `checksum` de las filas con
+`programa = paralelo_manual` debe ser **igual** a la de `programa = secuencial`
+para cada imagen y kernel. El script
 `evaluar.py` comprueba esto automáticamente y lo reporta en `tablas.md`.
 
 ## Si el checksum no coincide

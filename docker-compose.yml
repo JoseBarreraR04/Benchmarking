@@ -8,8 +8,8 @@ services:
     environment:
       # Repeticiones cronometradas por configuracion (protocolo: 30).
       BENCH_REPS: "${BENCH_REPS:-30}"
-      # Conjuntos a correr: setA (512/1024/2048/4096) y/o setB (30 aleatorias de imgs/).
-      BENCH_DATASETS: "${BENCH_DATASETS:-setA setB}"
+      # Un solo conjunto de imagenes (512, 1024, 2048 y 4096 px).
+      BENCH_DATASET: "${BENCH_DATASET:-/app/Images}"
     # Los resultados (CSV, tablas.md y graficas/) aparecen en ./resultados del host.
     volumes:
       - ./resultados:/resultados
